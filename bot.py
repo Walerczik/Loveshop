@@ -92,7 +92,7 @@ async def on_shutdown(app):
     await bot.delete_webhook()
 
 app = web.Application()
-app.router.add_post(WEBHOOK_PATH, get_new_configured_app(dispatcher=dp, bot=bot))
+app.router.add_post(WEBHOOK_PATH, get_new_configured_app(dispatcher=dp))
 app.on_startup.append(on_startup)
 app.on_shutdown.append(on_shutdown)
 
