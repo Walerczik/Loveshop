@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: lovebot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python bot.py
+    plan: free
+    envVars:
+      - key: API_TOKEN
+        value: "7059973966:AAGgfFCEFTkSU37XadpRivPaYKsb3YaARVI"
+      - key: ADMIN_ID
+        value: "6909254042"
+      - key: GIRL_ID
+        value: "436851363"
+      - key: WEBHOOK_URL
+        value: "https://Loveshop.onrender.com/webhook"  # Заменишь на актуальный URL после деплоя
