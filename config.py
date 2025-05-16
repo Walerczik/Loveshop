@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 ADMIN_ID = os.getenv("ADMIN_ID")
+USER_ID = os.getenv("USER_ID")
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 WEBAPP_HOST = os.getenv("WEBAPP_HOST", "0.0.0.0")
 WEBHOOK_PATH = "/webhook"
