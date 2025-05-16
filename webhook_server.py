@@ -1,5 +1,6 @@
 import logging
 from aiohttp import web
+
 from aiogram import Bot, Dispatcher
 from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.types import Update
@@ -10,7 +11,6 @@ from handlers import register_handlers
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(bot)
 dp.middleware.setup(LoggingMiddleware())
-
 register_handlers(dp)
 
 async def on_startup(app):
@@ -24,6 +24,10 @@ async def on_shutdown(app):
 async def handle(request):
     request_data = await request.json()
     update = Update.to_object(request_data)
+
+    # ВАЖНО: Устанавливаем текущий экземпляр бота в контекст
+    Bot.set_current(bot)
+
     await dp.process_update(update)
     return web.Response()
 
@@ -33,4 +37,4 @@ app.on_startup.append(on_startup)
 app.on_shutdown.append(on_shutdown)
 
 if __name__ == '__main__':
-    web.run_app(app, host=WEBAPP_HOST, port=int(WEBAPP_PORT))
+    web.run_app(app, host=WEBAPP_HOST, port=WEBAPP_PORT)
