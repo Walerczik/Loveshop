@@ -8,7 +8,7 @@ services:
       - key: API_TOKEN
         value: 7059973966:AAGgfFCEFTkSU37XadpRivPaYKsb3YaARVI
       - key: WEBHOOK_URL
-        value: https://kiss-shop-bot.onrender.com/webhook
+        value: https://loveshop.onrender.com/webhook
       - key: ADMIN_ID
         value: "6909254042"
       - key: GIRL_ID
