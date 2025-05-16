@@ -1,12 +1,12 @@
 import os
 import json
-
 from dotenv import load_dotenv
+
 load_dotenv()
 
 TOKEN = os.getenv("API_TOKEN")
 WEBHOOK_PATH = "/webhook"
-WEBHOOK_URL = f"https://loveshop.onrender.com{WEBHOOK_PATH}"
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 GIRL_ID = int(os.getenv("GIRL_ID"))
 
