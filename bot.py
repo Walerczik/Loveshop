@@ -17,7 +17,6 @@ main_kb = ReplyKeyboardMarkup(resize_keyboard=True)
 main_kb.add(KeyboardButton("🌸 Посмотреть баланс"))
 main_kb.add(KeyboardButton("🎁 Магазин"))
 
-# Команды админа
 @dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text.startswith("/начислить"))
 async def handle_add_kisses(message: types.Message):
     try:
@@ -42,7 +41,6 @@ async def handle_add_product(message: types.Message):
     except Exception:
         await message.answer("Формат: /добавить_товар <название> <цена>")
 
-# Старт
 @dp.message_handler(commands=["start"])
 async def cmd_start(message: types.Message):
     if message.from_user.id == GIRL_ID:
@@ -50,13 +48,11 @@ async def cmd_start(message: types.Message):
     else:
         await message.answer("Привет! Ты админ 😎")
 
-# Баланс
 @dp.message_handler(lambda m: m.text == "🌸 Посмотреть баланс" and m.from_user.id == GIRL_ID)
 async def handle_balance(message: types.Message):
     balance = db["balances"].get(str(message.from_user.id), 0)
     await message.answer(f"У тебя {balance} поцелуев 💋")
 
-# Магазин
 @dp.message_handler(lambda m: m.text == "🎁 Магазин" and m.from_user.id == GIRL_ID)
 async def handle_shop(message: types.Message):
     text = "Выбери, что хочешь:\n\n"
@@ -83,11 +79,12 @@ async def handle_purchase(message: types.Message):
     else:
         await message.answer("Такого товара нет.")
 
-# Вебхук
-from aiogram.utils.executor import start_webhook
+WEBHOOK_HOST = "https://kiss-shop-bot.onrender.com"
+WEBHOOK_PATH = "/webhook"
+WEBHOOK_URL = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 
 WEBAPP_HOST = "0.0.0.0"
-WEBAPP_PORT = int(os.environ.get("PORT", 10000))  # Render сам задаёт порт
+WEBAPP_PORT = 10000
 
 async def on_startup(app):
     await bot.set_webhook(WEBHOOK_URL)
@@ -95,11 +92,10 @@ async def on_startup(app):
 async def on_shutdown(app):
     await bot.delete_webhook()
 
-# ⚠️ исправленный webhook handler
 async def webhook_handler(request):
     try:
         data = await request.json()
-        update = types.Update(**data)
+        update = types.Update.to_object(data)
         await dp.process_update(update)
     except Exception as e:
         print(f"Ошибка обработки webhook: {e}")
