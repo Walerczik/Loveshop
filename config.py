@@ -9,7 +9,7 @@ USER_IDS = [436851363]
 
 WEBHOOK_PATH = f"/webhook/{BOT_TOKEN}"
 WEBAPP_HOST = os.getenv("WEBAPP_HOST", "0.0.0.0")
-WEBAPP_PORT = os.getenv("PORT", "10000")
+WEBAPP_PORT = int(os.getenv("PORT", "10000"))
 
 BASE_URL = os.getenv("RENDER_EXTERNAL_URL") or os.getenv("BASE_URL")
 if not BASE_URL:
