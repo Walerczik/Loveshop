@@ -2,7 +2,6 @@ import os
 import json
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
-from aiogram.dispatcher.webhook import get_new_configured_app
 from aiohttp import web
 from config import (
     TOKEN, ADMIN_ID, GIRL_ID, WEBHOOK_URL, WEBHOOK_PATH,
@@ -87,34 +86,29 @@ async def handle_purchase(message: types.Message):
 # Вебхук
 from aiogram.utils.executor import start_webhook
 
-# Вебхук: путь и URL
-WEBHOOK_HOST = WEBHOOK_URL.replace(WEBHOOK_PATH, "")  # Например: https://example.com
 WEBAPP_HOST = "0.0.0.0"
-WEBAPP_PORT = 10000
+WEBAPP_PORT = int(os.environ.get("PORT", 10000))  # Render сам задаёт порт
 
-# Стартовые события
 async def on_startup(app):
     await bot.set_webhook(WEBHOOK_URL)
 
 async def on_shutdown(app):
     await bot.delete_webhook()
 
-# 🧠 Основной webhook handler
+# ⚠️ исправленный webhook handler
 async def webhook_handler(request):
     try:
         data = await request.json()
-        update = types.Update.to_object(data)
+        update = types.Update(**data)
         await dp.process_update(update)
     except Exception as e:
         print(f"Ошибка обработки webhook: {e}")
     return web.Response()
 
-# Создание aiohttp-приложения
 app = web.Application()
 app.router.add_post(WEBHOOK_PATH, webhook_handler)
 app.on_startup.append(on_startup)
 app.on_shutdown.append(on_shutdown)
 
-# Запуск
 if __name__ == "__main__":
     web.run_app(app, host=WEBAPP_HOST, port=WEBAPP_PORT)
