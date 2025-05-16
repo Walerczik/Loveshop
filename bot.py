@@ -1,142 +1,100 @@
 import os
 import json
-import logging
 from aiogram import Bot, Dispatcher, types
-from aiogram.contrib.middlewares.logging import LoggingMiddleware
 from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
+from aiogram.dispatcher.webhook import get_new_configured_app
 from aiohttp import web
-from dotenv import load_dotenv
+from config import (
+    TOKEN, ADMIN_ID, GIRL_ID, WEBHOOK_URL, WEBHOOK_PATH,
+    db_path, load_db, save_db
+)
 
-load_dotenv()
-
-API_TOKEN = os.getenv("API_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID"))
-GIRL_ID = int(os.getenv("GIRL_ID"))
-WEBHOOK_URL = os.getenv("WEBHOOK_URL")
-
-WEBHOOK_PATH = '/webhook'
-
-bot = Bot(token=API_TOKEN)
+bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
-dp.middleware.setup(LoggingMiddleware())
 
-DATA_FILE = 'data.json'
+db = load_db()
 
-def load_data():
+main_kb = ReplyKeyboardMarkup(resize_keyboard=True)
+main_kb.add(KeyboardButton("🌸 Посмотреть баланс"))
+main_kb.add(KeyboardButton("🎁 Магазин"))
+
+# Команды админа
+@dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text.startswith("/начислить"))
+async def handle_add_kisses(message: types.Message):
     try:
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
-    except:
-        return {"balances": {}, "items": [], "orders": []}
-
-def save_data(data):
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
-
-def main_keyboard():
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-    keyboard.add(KeyboardButton("💋 Баланс"), KeyboardButton("🛍 Заказать"))
-    return keyboard
-
-@dp.message_handler(commands=['start'])
-async def start(message: types.Message):
-    if message.from_user.id == GIRL_ID:
-        await message.answer("Привет, любимая ❤️", reply_markup=main_keyboard())
-    elif message.from_user.id == ADMIN_ID:
-        await message.answer("Админ режим включен. Используй команды.")
-
-@dp.message_handler(lambda m: m.text == "💋 Баланс")
-async def balance(message: types.Message):
-    data = load_data()
-    bal = data["balances"].get(str(message.from_user.id), 0)
-    await message.answer(f"У тебя {bal} поцелуйчиков 💋")
-
-@dp.message_handler(lambda m: m.text == "🛍 Заказать")
-async def show_items(message: types.Message):
-    data = load_data()
-    items = data["items"]
-    if not items:
-        await message.answer("Сейчас нет доступных заказов.")
-        return
-    keyboard = ReplyKeyboardMarkup(resize_keyboard=True)
-    for item in items:
-        keyboard.add(KeyboardButton(f'{item["name"]} ({item["price"]}💋)'))
-    keyboard.add(KeyboardButton("🔙 Назад"))
-    await message.answer("Выбери, что хочешь заказать:", reply_markup=keyboard)
-
-@dp.message_handler(lambda m: m.text == "🔙 Назад")
-async def go_back(message: types.Message):
-    await message.answer("Главное меню", reply_markup=main_keyboard())
-
-@dp.message_handler(lambda m: m.from_user.id == GIRL_ID)
-async def handle_order(message: types.Message):
-    data = load_data()
-    for item in data["items"]:
-        if item["name"] in message.text:
-            uid = str(message.from_user.id)
-            balance = data["balances"].get(uid, 0)
-            if balance >= item["price"]:
-                data["balances"][uid] = balance - item["price"]
-                data["orders"].append({"user": uid, "item": item["name"]})
-                save_data(data)
-                await message.answer(f"Ты заказала: {item['name']} 😘", reply_markup=main_keyboard())
-                await bot.send_message(ADMIN_ID, f"👩‍❤️‍👨 Она заказала: {item['name']} ({item['price']}💋)")
-            else:
-                await message.answer("Недостаточно поцелуев 😢", reply_markup=main_keyboard())
-            return
-    await message.answer("Не понимаю. Попробуй снова.", reply_markup=main_keyboard())
-
-@dp.message_handler(commands=['additem'])
-async def add_item(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    try:
-        _, name, price = message.text.split(maxsplit=2)
-        price = int(price)
-        data = load_data()
-        data["items"].append({"name": name, "price": price})
-        save_data(data)
-        await message.answer(f"Добавлено: {name} за {price}💋")
-    except:
-        await message.answer("Формат: /additem Название 10")
-
-@dp.message_handler(commands=['give'])
-async def give_kisses(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    try:
-        _, uid, amount = message.text.split()
+        _, user_id, amount = message.text.split()
+        user_id = int(user_id)
         amount = int(amount)
-        data = load_data()
-        data["balances"][uid] = data["balances"].get(uid, 0) + amount
-        save_data(data)
-        await message.answer(f"Начислено {amount}💋 пользователю {uid}")
-    except:
-        await message.answer("Формат: /give user_id amount")
+        db["balances"].setdefault(str(user_id), 0)
+        db["balances"][str(user_id)] += amount
+        save_db(db)
+        await message.answer(f"Начислено {amount} поцелуев пользователю {user_id}")
+    except Exception:
+        await message.answer("Используй формат:\n/начислить <user_id> <amount>")
 
-@dp.message_handler(commands=['orders'])
-async def show_orders(message: types.Message):
-    if message.from_user.id != ADMIN_ID:
-        return
-    data = load_data()
-    if not data["orders"]:
-        await message.answer("Нет заказов.")
+@dp.message_handler(lambda m: m.from_user.id == ADMIN_ID and m.text.startswith("/добавить_товар"))
+async def handle_add_product(message: types.Message):
+    try:
+        _, title, price = message.text.split(maxsplit=2)
+        product_id = str(len(db["products"]) + 1)
+        db["products"][product_id] = {"title": title, "price": int(price)}
+        save_db(db)
+        await message.answer(f"Товар '{title}' добавлен за {price} поцелуев.")
+    except Exception:
+        await message.answer("Формат: /добавить_товар <название> <цена>")
+
+# Старт
+@dp.message_handler(commands=["start"])
+async def cmd_start(message: types.Message):
+    if message.from_user.id == GIRL_ID:
+        await message.answer("Добро пожаловать в магазин поцелуев 💋", reply_markup=main_kb)
     else:
-        msg = "\n".join([f"{o['user']} → {o['item']}" for o in data["orders"]])
-        await message.answer(f"📦 Заказы:\n{msg}")
+        await message.answer("Привет! Ты админ 😎")
 
-# Webhook
+# Баланс
+@dp.message_handler(lambda m: m.text == "🌸 Посмотреть баланс" and m.from_user.id == GIRL_ID)
+async def handle_balance(message: types.Message):
+    balance = db["balances"].get(str(message.from_user.id), 0)
+    await message.answer(f"У тебя {balance} поцелуев 💋")
+
+# Магазин
+@dp.message_handler(lambda m: m.text == "🎁 Магазин" and m.from_user.id == GIRL_ID)
+async def handle_shop(message: types.Message):
+    text = "Выбери, что хочешь:\n\n"
+    for pid, product in db["products"].items():
+        text += f"{pid}. {product['title']} — {product['price']} поцелуев\n"
+    text += "\nНапиши номер товара, чтобы заказать."
+    await message.answer(text)
+
+@dp.message_handler(lambda m: m.text.isdigit() and m.from_user.id == GIRL_ID)
+async def handle_purchase(message: types.Message):
+    pid = message.text.strip()
+    user_id = str(message.from_user.id)
+    if pid in db["products"]:
+        product = db["products"][pid]
+        price = product["price"]
+        balance = db["balances"].get(user_id, 0)
+        if balance >= price:
+            db["balances"][user_id] -= price
+            save_db(db)
+            await message.answer(f"Ты заказала: {product['title']} 💌")
+            await bot.send_message(ADMIN_ID, f"Заказ: {product['title']} от девушки!")
+        else:
+            await message.answer("Не хватает поцелуев 😢")
+    else:
+        await message.answer("Такого товара нет.")
+
+# Вебхук
 async def on_startup(app):
     await bot.set_webhook(WEBHOOK_URL)
 
 async def on_shutdown(app):
     await bot.delete_webhook()
-    await bot.close()
 
 app = web.Application()
-app.router.add_post(WEBHOOK_PATH, dp.webhook_handler)
+app.router.add_post(WEBHOOK_PATH, get_new_configured_app(dispatcher=dp, bot=bot))
 app.on_startup.append(on_startup)
 app.on_shutdown.append(on_shutdown)
 
-if __name__ == '__main__':
-    web.run_app(app, port=3000)
+if __name__ == "__main__":
+    web.run_app(app, port=10000)
