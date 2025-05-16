@@ -1,5 +1,5 @@
 from aiogram import types, Dispatcher
-from config import ADMIN_ID, USER_ID
+from config import ADMIN_ID
 from keyboards import get_shop_keyboard
 from models import (
     get_balance, add_balance, subtract_balance,
